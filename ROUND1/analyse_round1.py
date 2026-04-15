@@ -66,6 +66,17 @@ def load_prices() -> pd.DataFrame:
     prices["best_ask"] = prices["ask_price_1"]
     prices["spread"] = prices["best_ask"] - prices["best_bid"]
 
+    # Fix bad mid_price values.
+    # Some rows have mid_price = 0 when one side of the book is missing.
+    prices["computed_mid"] = (prices["best_bid"] + prices["best_ask"]) / 2
+
+    prices.loc[prices["mid_price"] <= 0, "mid_price"] = np.nan
+    prices["mid_price"] = prices["computed_mid"].combine_first(prices["mid_price"])
+    prices["mid_price"] = (
+        prices.groupby("product")["mid_price"]
+        .transform(lambda s: s.ffill().bfill())
+    )
+
     bid_vol_cols = [f"bid_volume_{i}" for i in range(1, 4)]
     ask_vol_cols = [f"ask_volume_{i}" for i in range(1, 4)]
 
